@@ -1,0 +1,91 @@
+# Load required libraries
+library(traveltimeR)
+library(leaflet)
+
+# Set API credentials - Sign up here https://docs.traveltime.com/api/overview/introduction
+Sys.setenv(TRAVELTIME_ID = "your_api_id")
+Sys.setenv(TRAVELTIME_KEY = "your_api_key")
+
+# Requesting isochrones for multiple locations
+
+## List of arrival coordinates for the locations you want to map travel to (latitude and longitude)
+## In this case, it's Southeast England airports
+## Note that you can do a maximum of 5 searches a minute with the free API
+arrival_coords <- list(
+  list(lat = 51.470020, lng = -0.454295),  # Heathrow Airport
+  list(lat = 51.87335058631459, lng = -0.39614318465576837), # Luton Airport
+  list(lat = 51.5052777778, lng = 0.0495), # London City airport
+  list(lat = 51.15750080764342, lng = -0.16081605397794002), # Gatwick Airport
+  list(lat = 50.9502, lng = -1.36155) # Southampton Airport
+)
+
+# Define a vector of colors for isochrones
+iso_colors <- c("blue", "red", "green", "orange", "purple")  # Adjust colors as needed
+
+# Initialize an empty list to store maps
+maps <- list()
+
+# Loop through each arrival coordinate to request isochrones from API
+for (i in seq_along(arrival_coords)) {
+  # Create search object for each arrival coordinate
+  arrival_search <- make_search(
+    id = paste0("public transport to site ", i),  # Unique ID for each search
+    travel_time = 4500,  # in seconds, 3600 = 1 hour, 4500 = 1 hour 15 mins
+    coords = list(lat = arrival_coords[[i]]$lat, lng = arrival_coords[[i]]$lng),  # Current arrival coordinate
+    arrival_time_period = "weekday_morning",
+    transportation = list(type = "public_transport")
+  )
+  
+  # Perform time map search
+  result <- time_map_fast(arrival_many_to_one = arrival_search)
+  
+  # This produces a "result" containing JSON content converted by traveltimeR to R data structures,
+  # Which is then looped through to extract lat and long for each shape
+  
+  # Check if result is not NULL
+  if (!is.null(result$contentParsed)) {
+    # Extracting shapes
+    shapes <- result$contentParsed$results[[1]]$shapes
+    
+    # Creating empty lists to store coordinates
+    all_latitudes <- list()
+    all_longitudes <- list()
+    
+    # Loop through each shape
+    for (j in seq_along(shapes)) {
+      shape <- shapes[[j]]
+      
+      # Extracting latitude and longitude values for each shape
+      latitudes <- sapply(shape$shell, function(coord) coord[[1]])  # Index 1 for latitude
+      longitudes <- sapply(shape$shell, function(coord) coord[[2]]) # Index 2 for longitude
+      
+      # Storing coordinates for each shape
+      all_latitudes[[j]] <- latitudes
+      all_longitudes[[j]] <- longitudes
+    }
+    
+    # Store coordinates and color in maps list
+    maps[[i]] <- list(lat = all_latitudes, lng = all_longitudes, color = iso_colors[i])
+  } else {
+    print(paste("Isochrone could not be generated for coordinate", i))
+  }
+}
+
+
+# Creating a leaflet map with white background
+map <- leaflet() %>%
+  addProviderTiles(providers$OpenStreetMap.Mapnik) %>%  # White background with place names
+  addTiles()  # Add tiles for roads
+
+# Adding polygons for each isochrone
+for (i in seq_along(maps)) {
+  for (j in seq_along(maps[[i]]$lat)) {
+    map <- addPolygons(map, lng = maps[[i]]$lng[[j]], lat = maps[[i]]$lat[[j]], 
+                       fillColor = maps[[i]]$color, fillOpacity = 0.4, weight = 0)
+  }
+}
+
+
+# Display the map
+map
+
