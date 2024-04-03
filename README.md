@@ -31,6 +31,10 @@ The TravelTime API is a service provided by TravelTime that allows developers to
 - `traveltimeR` and `leaflet` R packages
 - TravelTime API credentials (API ID and API key)
 
+## Example Output
+
+![image](https://github.com/SarahHoustonGH/TravelTimeIsochrone/assets/82393866/94e97f15-2528-493f-9317-a509ee05b20d)
+
 ## Notes
 
 - The script uses the TravelTime API to generate isochrone maps for specified arrival coordinates (in this case, airports). You may modify the coordinates and parameters as needed.
